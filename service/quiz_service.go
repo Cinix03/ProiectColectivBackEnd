@@ -11,23 +11,21 @@ import (
 	"github.com/SerbanEduard/ProiectColectivBackEnd/model/dto"
 	"github.com/SerbanEduard/ProiectColectivBackEnd/model/entity"
 	"github.com/SerbanEduard/ProiectColectivBackEnd/persistence"
+	"github.com/SerbanEduard/ProiectColectivBackEnd/utils"
+	"github.com/SerbanEduard/ProiectColectivBackEnd/validator"
 )
 
 var (
-	ErrValidation       = errors.New("validation failed")
 	ErrResourceNotFound = errors.New("resource not found")
 	ErrForbidden        = errors.New("forbidden")
 )
 
 const (
-	nameEmptyError        = "name can not be null"
-	invalidQuestionsError = "questions are invalid"
-	teamNotFound          = "team not found"
-	userNotFound          = "user not found"
-	userNotInTeam         = "user not in team"
-	quizIdEmpty           = "no id specified"
-	quizNotFound          = "quiz not found"
-	NotFoundError         = "not found"
+	teamNotFound  = "team not found"
+	userNotFound  = "user not found"
+	userNotInTeam = "user not in team"
+	quizNotFound  = "quiz not found"
+	NotFoundError = "not found"
 )
 
 type QuizServiceInterface interface {
@@ -35,6 +33,8 @@ type QuizServiceInterface interface {
 	GetQuizWithAnswersById(id string) (entity.Quiz, error)
 	GetQuizWithoutAnswersById(id string) (dto.ReadQuizResponse, error)
 	SolveQuiz(request dto.SolveQuizRequest, userId string) (dto.SolveQuizResponse, error)
+	GetQuizzesByUser(userId string, pageSize int, lastKey string) ([]dto.ReadQuizResponse, string, error)
+	GetQuizzesByTeam(userId string, teamId string, pageSize int, lastKey string) ([]dto.ReadQuizResponse, string, error)
 }
 
 type QuizService struct {
@@ -90,8 +90,8 @@ func (qs *QuizService) isUserInTeam(userId string, teamId string) (bool, error) 
 }
 
 func (qs *QuizService) CreateQuiz(request entity.Quiz) (dto.CreateQuizResponse, error) {
-	if request.QuizName == "" {
-		return dto.CreateQuizResponse{}, fmt.Errorf("%w: %s", ErrValidation, nameEmptyError)
+	if err := validator.ValidateCreateQuizRequest(request); err != nil {
+		return dto.CreateQuizResponse{}, err
 	}
 
 	team, err := qs.teamRepo.GetTeamById(request.TeamID)
@@ -106,19 +106,15 @@ func (qs *QuizService) CreateQuiz(request entity.Quiz) (dto.CreateQuizResponse, 
 		return dto.CreateQuizResponse{}, err
 	}
 
-	for i, question := range request.Questions {
-		if question.Question == "" || len(question.Options) == 0 || len(question.Answers) == 0 || question.Type == "" {
-			return dto.CreateQuizResponse{}, fmt.Errorf("%w: %s", ErrValidation, invalidQuestionsError)
-		}
-
-		questionID, err := generateID()
+	for i := range request.Questions {
+		questionID, err := utils.GenerateID()
 		if err != nil {
 			return dto.CreateQuizResponse{}, err
 		}
 		request.Questions[i].ID = questionID
 	}
 
-	id, err := generateID()
+	id, err := utils.GenerateID()
 	if err != nil {
 		return dto.CreateQuizResponse{}, err
 	}
@@ -133,8 +129,8 @@ func (qs *QuizService) CreateQuiz(request entity.Quiz) (dto.CreateQuizResponse, 
 }
 
 func (qs *QuizService) GetQuizWithAnswersById(id string) (entity.Quiz, error) {
-	if id == "" {
-		return entity.Quiz{}, fmt.Errorf("%w: %s", ErrValidation, quizIdEmpty)
+	if err := validator.ValidateQuizId(id); err != nil {
+		return entity.Quiz{}, err
 	}
 
 	quiz, err := qs.quizRepo.GetById(id)
@@ -149,8 +145,8 @@ func (qs *QuizService) GetQuizWithAnswersById(id string) (entity.Quiz, error) {
 }
 
 func (qs *QuizService) GetQuizWithoutAnswersById(id string) (dto.ReadQuizResponse, error) {
-	if id == "" {
-		return dto.ReadQuizResponse{}, fmt.Errorf("%w: %s", ErrValidation, quizIdEmpty)
+	if err := validator.ValidateQuizId(id); err != nil {
+		return dto.ReadQuizResponse{}, err
 	}
 
 	quiz, err := qs.quizRepo.GetById(id)
@@ -166,8 +162,8 @@ func (qs *QuizService) GetQuizWithoutAnswersById(id string) (dto.ReadQuizRespons
 }
 
 func (qs *QuizService) SolveQuiz(request dto.SolveQuizRequest, userId string) (dto.SolveQuizResponse, error) {
-	if request.QuizID == "" {
-		return dto.SolveQuizResponse{}, fmt.Errorf("%w: %s", ErrValidation, quizIdEmpty)
+	if err := validator.ValidateQuizId(request.QuizID); err != nil {
+		return dto.SolveQuizResponse{}, err
 	}
 
 	questionsSubmitted := request.Attempts
@@ -191,14 +187,15 @@ func (qs *QuizService) SolveQuiz(request dto.SolveQuizRequest, userId string) (d
 		return questions[i].ID < questions[j].ID
 	})
 
-	if len(questionsSubmitted) != len(questions) {
-		return dto.SolveQuizResponse{}, fmt.Errorf("%w: %s", ErrValidation, invalidQuestionsError)
+	// Validate the solve quiz request with questions
+	if err := validator.ValidateSolveQuizRequest(request, questions); err != nil {
+		return dto.SolveQuizResponse{}, err
 	}
 
 	for i, question := range questions {
 		submitted := questionsSubmitted[i]
-		if question.ID != submitted.QuestionID {
-			return dto.SolveQuizResponse{}, fmt.Errorf("%w: %s", ErrValidation, invalidQuestionsError)
+		if err := validator.ValidateQuestionSubmission(submitted, question); err != nil {
+			return dto.SolveQuizResponse{}, err
 		}
 	}
 
@@ -222,4 +219,63 @@ func (qs *QuizService) SolveQuiz(request dto.SolveQuizRequest, userId string) (d
 		IsCorrect:         allCorrect,
 		QuestionResponses: questionResponses,
 	}, nil
+}
+
+func (qs *QuizService) GetQuizzesByUser(userId string, pageSize int, lastKey string) ([]dto.ReadQuizResponse, string, error) {
+	if err := validator.ValidateGetQuizzesByUserRequest(userId, pageSize); err != nil {
+		return nil, "", err
+	}
+
+	_, err := qs.userRepo.GetByID(userId)
+	if err != nil {
+		if strings.Contains(err.Error(), NotFoundError) {
+			return nil, "", fmt.Errorf("%w: %s", ErrResourceNotFound, userNotFound)
+		}
+		return nil, "", err
+	}
+
+	quizzes, newKey, err := qs.quizRepo.GetByUser(userId, pageSize, lastKey)
+	if err != nil {
+		return nil, "", err
+	}
+	results := make([]dto.ReadQuizResponse, 0, len(quizzes))
+	for _, quiz := range quizzes {
+		if _, err := qs.isUserInTeam(userId, quiz.TeamID); err != nil {
+			return nil, "", err
+		}
+		quizDTO := mappers.MapDomainToReadDTO(quiz)
+		results = append(results, quizDTO)
+	}
+
+	return results, newKey, nil
+}
+
+func (qs *QuizService) GetQuizzesByTeam(userId string, teamId string, pageSize int, lastKey string) ([]dto.ReadQuizResponse, string, error) {
+	if err := validator.ValidateGetQuizzesByTeamRequest(userId, teamId, pageSize); err != nil {
+		return nil, "", err
+	}
+
+	_, err := qs.teamRepo.GetTeamById(teamId)
+	if err != nil {
+		if strings.Contains(err.Error(), NotFoundError) {
+			return nil, "", fmt.Errorf("%w: %s", ErrResourceNotFound, teamNotFound)
+		}
+		return nil, "", err
+	}
+
+	if isPartOf, err := qs.isUserInTeam(userId, teamId); isPartOf == false {
+		return nil, "", err
+	}
+
+	quizzes, newKey, err := qs.quizRepo.GetByTeam(teamId, pageSize, lastKey)
+	if err != nil {
+		return nil, "", err
+	}
+	results := make([]dto.ReadQuizResponse, 0, len(quizzes))
+	for _, quiz := range quizzes {
+		quizDTO := mappers.MapDomainToReadDTO(quiz)
+		results = append(results, quizDTO)
+	}
+
+	return results, newKey, nil
 }

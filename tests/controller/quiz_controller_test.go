@@ -14,6 +14,7 @@ import (
 	"github.com/SerbanEduard/ProiectColectivBackEnd/service"
 	"github.com/SerbanEduard/ProiectColectivBackEnd/tests"
 	. "github.com/SerbanEduard/ProiectColectivBackEnd/tests"
+	"github.com/SerbanEduard/ProiectColectivBackEnd/validator"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
@@ -79,7 +80,7 @@ func TestQuizController_CreateQuiz_ServiceValidationError(t *testing.T) {
 	qc := controller.NewQuizControllerWithService(mockService)
 
 	request := entity.Quiz{QuizName: ""}
-	mockService.On("CreateQuiz", request).Return(dto.CreateQuizResponse{}, fmt.Errorf("%w: %s", service.ErrValidation, "name can not be null"))
+	mockService.On("CreateQuiz", request).Return(dto.CreateQuizResponse{}, fmt.Errorf("%w: %s", validator.ErrValidation, "name can not be null"))
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -191,7 +192,7 @@ func TestQuizController_GetQuizWithoutAnswers_ValidationError(t *testing.T) {
 	mockService := new(tests.MockQuizService)
 	qc := controller.NewQuizControllerWithService(mockService)
 
-	mockService.On("GetQuizWithoutAnswersById", "").Return(dto.ReadQuizResponse{}, fmt.Errorf("%w: %s", service.ErrValidation, "no id specified"))
+	mockService.On("GetQuizWithoutAnswersById", "").Return(dto.ReadQuizResponse{}, fmt.Errorf("%w: %s", validator.ErrValidation, "no id specified"))
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -278,7 +279,7 @@ func TestQuizController_SolveQuiz_ValidationError(t *testing.T) {
 		},
 	}
 
-	mockService.On("SolveQuiz", request, TestUserID).Return(dto.SolveQuizResponse{}, fmt.Errorf("%w: %s", service.ErrValidation, "no id specified"))
+	mockService.On("SolveQuiz", request, TestUserID).Return(dto.SolveQuizResponse{}, fmt.Errorf("%w: %s", validator.ErrValidation, "no id specified"))
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -365,5 +366,203 @@ func TestQuizController_SolveQuiz_IncorrectAnswers(t *testing.T) {
 	assert.False(t, resp.IsCorrect)
 	assert.Len(t, resp.QuestionResponses, 1)
 	assert.False(t, resp.QuestionResponses[0].IsCorrect)
+	mockService.AssertExpectations(t)
+}
+
+func TestQuizController_GetQuizzesByUser_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	mockService := new(tests.MockQuizService)
+	qc := controller.NewQuizControllerWithService(mockService)
+
+	expectedQuizzes := []dto.ReadQuizResponse{
+		{QuizID: "quiz1", QuizTitle: "Quiz 1"},
+		{QuizID: "quiz2", QuizTitle: "Quiz 2"},
+	}
+	expectedNextKey := "nextKey123"
+
+	mockService.On("GetQuizzesByUser", TestUserID, 10, "").Return(expectedQuizzes, expectedNextKey, nil)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Params = []gin.Param{{Key: "userId", Value: TestUserID}}
+
+	qc.GetQuizzesByUser(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+
+	quizzes := resp["quizzes"].([]interface{})
+	assert.Len(t, quizzes, 2)
+	assert.Equal(t, expectedNextKey, resp["nextKey"])
+	mockService.AssertExpectations(t)
+}
+
+func TestQuizController_GetQuizzesByUser_WithPagination(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	mockService := new(tests.MockQuizService)
+	qc := controller.NewQuizControllerWithService(mockService)
+
+	expectedQuizzes := []dto.ReadQuizResponse{
+		{QuizID: "quiz1", QuizTitle: "Quiz 1"},
+	}
+
+	mockService.On("GetQuizzesByUser", TestUserID, 5, "lastKey123").Return(expectedQuizzes, "", nil)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Params = []gin.Param{{Key: "userId", Value: TestUserID}}
+	c.Request, _ = http.NewRequest("GET", "/quizzes/user/"+TestUserID+"?pageSize=5&lastKey=lastKey123", nil)
+
+	qc.GetQuizzesByUser(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockService.AssertExpectations(t)
+}
+
+func TestQuizController_GetQuizzesByUser_EmptyUserId(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	mockService := new(tests.MockQuizService)
+	qc := controller.NewQuizControllerWithService(mockService)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Params = []gin.Param{{Key: "userId", Value: ""}}
+
+	qc.GetQuizzesByUser(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestQuizController_GetQuizzesByUser_ServiceError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	mockService := new(tests.MockQuizService)
+	qc := controller.NewQuizControllerWithService(mockService)
+
+	mockService.On("GetQuizzesByUser", TestUserID, 10, "").Return([]dto.ReadQuizResponse{}, "", fmt.Errorf("%w: %s", validator.ErrValidation, "validation error"))
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Params = []gin.Param{{Key: "userId", Value: TestUserID}}
+
+	qc.GetQuizzesByUser(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	mockService.AssertExpectations(t)
+}
+
+func TestQuizController_GetQuizzesByTeam_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	mockService := new(tests.MockQuizService)
+	qc := controller.NewQuizControllerWithService(mockService)
+
+	expectedQuizzes := []dto.ReadQuizResponse{
+		{QuizID: "quiz1", QuizTitle: "Team Quiz 1"},
+		{QuizID: "quiz2", QuizTitle: "Team Quiz 2"},
+	}
+	expectedNextKey := "teamNextKey123"
+
+	claims := jwt.MapClaims{"sub": TestUserID}
+	mockService.On("GetQuizzesByTeam", TestUserID, TestTeamID, 10, "").Return(expectedQuizzes, expectedNextKey, nil)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Set("userClaims", claims)
+	c.Params = []gin.Param{{Key: "teamId", Value: TestTeamID}}
+
+	qc.GetQuizzesByTeam(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+
+	quizzes := resp["quizzes"].([]interface{})
+	assert.Len(t, quizzes, 2)
+	assert.Equal(t, expectedNextKey, resp["nextKey"])
+	mockService.AssertExpectations(t)
+}
+
+func TestQuizController_GetQuizzesByTeam_WithPagination(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	mockService := new(tests.MockQuizService)
+	qc := controller.NewQuizControllerWithService(mockService)
+
+	expectedQuizzes := []dto.ReadQuizResponse{
+		{QuizID: "quiz1", QuizTitle: "Team Quiz 1"},
+	}
+
+	claims := jwt.MapClaims{"sub": TestUserID}
+	mockService.On("GetQuizzesByTeam", TestUserID, TestTeamID, 20, "teamLastKey").Return(expectedQuizzes, "", nil)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Set("userClaims", claims)
+	c.Params = []gin.Param{{Key: "teamId", Value: TestTeamID}}
+	c.Request, _ = http.NewRequest("GET", "/quizzes/team/"+TestTeamID+"?pageSize=20&lastKey=teamLastKey", nil)
+
+	qc.GetQuizzesByTeam(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockService.AssertExpectations(t)
+}
+
+func TestQuizController_GetQuizzesByTeam_EmptyTeamId(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	mockService := new(tests.MockQuizService)
+	qc := controller.NewQuizControllerWithService(mockService)
+
+	claims := jwt.MapClaims{"sub": TestUserID}
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Set("userClaims", claims)
+	c.Params = []gin.Param{{Key: "teamId", Value: ""}}
+
+	qc.GetQuizzesByTeam(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestQuizController_GetQuizzesByTeam_UnauthorizedNoToken(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	mockService := new(tests.MockQuizService)
+	qc := controller.NewQuizControllerWithService(mockService)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Params = []gin.Param{{Key: "teamId", Value: TestTeamID}}
+
+	qc.GetQuizzesByTeam(c)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestQuizController_GetQuizzesByTeam_Forbidden(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	mockService := new(tests.MockQuizService)
+	qc := controller.NewQuizControllerWithService(mockService)
+
+	claims := jwt.MapClaims{"sub": TestUserID}
+	mockService.On("GetQuizzesByTeam", TestUserID, TestTeamID, 10, "").Return([]dto.ReadQuizResponse{}, "", fmt.Errorf("%w: %s", service.ErrForbidden, "user not in team"))
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Set("userClaims", claims)
+	c.Params = []gin.Param{{Key: "teamId", Value: TestTeamID}}
+
+	qc.GetQuizzesByTeam(c)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
 	mockService.AssertExpectations(t)
 }

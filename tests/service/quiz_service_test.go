@@ -9,6 +9,7 @@ import (
 	"github.com/SerbanEduard/ProiectColectivBackEnd/service"
 	"github.com/SerbanEduard/ProiectColectivBackEnd/tests"
 	. "github.com/SerbanEduard/ProiectColectivBackEnd/tests"
+	"github.com/SerbanEduard/ProiectColectivBackEnd/validator"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -71,7 +72,7 @@ func TestQuizService_CreateQuiz_EmptyQuizName_ValidationFail(t *testing.T) {
 	_, err := mockService.CreateQuiz(request)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, service.ErrValidation))
+	assert.True(t, errors.Is(err, validator.ErrValidation))
 	assert.Contains(t, err.Error(), "name can not be null")
 }
 
@@ -131,25 +132,16 @@ func TestQuizService_CreateQuiz_UserNotAMember_Forbidden(t *testing.T) {
 }
 
 func TestQuizService_CreateQuiz_InvalidQuestionFormat_ValidationFail(t *testing.T) {
-	mockTeamRepo := new(tests.MockTeamRepository)
-	mockUserRepo := new(tests.MockUserRepository)
-	quizService := service.NewQuizServiceWithRepo(mockTeamRepo, mockUserRepo, nil)
+	quizService := service.NewQuizServiceWithRepo(nil, nil, nil)
 	request := getValidQuizRequestEntity()
-	team := &entity.Team{Id: TestTeamID}
-	userTeams := []string{TestTeamID}
-	user := &entity.User{ID: TestUserID, TeamsIds: &userTeams}
 
 	request.Questions[0].Options = []string{}
-	mockTeamRepo.On("GetTeamById", TestTeamID).Return(team, nil).Once()
-	mockUserRepo.On("GetByID", TestUserID).Return(user, nil).Once()
 
 	_, err := quizService.CreateQuiz(request)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, service.ErrValidation))
+	assert.True(t, errors.Is(err, validator.ErrValidation))
 	assert.Contains(t, err.Error(), "questions are invalid")
-	mockTeamRepo.AssertExpectations(t)
-	mockUserRepo.AssertExpectations(t)
 }
 
 func TestQuizService_GetQuizWithAnswersById_Success(t *testing.T) {
@@ -173,7 +165,7 @@ func TestQuizService_GetQuizWithAnswersById_EmptyID_ValidationFail(t *testing.T)
 	_, err := mockService.GetQuizWithAnswersById("")
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, service.ErrValidation))
+	assert.True(t, errors.Is(err, validator.ErrValidation))
 	assert.Contains(t, err.Error(), "no id specified")
 }
 
@@ -219,7 +211,7 @@ func TestQuizService_GetQuizWithoutAnswersById_EmptyID_ValidationFail(t *testing
 	_, err := quizService.GetQuizWithoutAnswersById("")
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, service.ErrValidation))
+	assert.True(t, errors.Is(err, validator.ErrValidation))
 	assert.Contains(t, err.Error(), "no id specified")
 }
 
@@ -318,7 +310,7 @@ func TestQuizService_SolveQuiz_EmptyQuizID_ValidationFail(t *testing.T) {
 	_, err := quizService.SolveQuiz(solveRequest, TestUserID)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, service.ErrValidation))
+	assert.True(t, errors.Is(err, validator.ErrValidation))
 	assert.Contains(t, err.Error(), "no id specified")
 }
 
@@ -419,4 +411,190 @@ func TestQuizService_SolveQuiz_UserNotInTeam_Forbidden(t *testing.T) {
 	assert.Contains(t, err.Error(), "user not in team")
 	mockQuizRepo.AssertExpectations(t)
 	mockUserRepo.AssertExpectations(t)
+}
+
+func TestQuizService_GetQuizzesByUser_Success(t *testing.T) {
+	mockQuizRepo := new(tests.MockQuizRepository)
+	mockUserRepo := new(tests.MockUserRepository)
+	quizService := service.NewQuizServiceWithRepo(nil, mockUserRepo, mockQuizRepo)
+
+	expectedQuizzes := []entity.Quiz{
+		{ID: "quiz1", QuizName: "Quiz 1", UserID: TestUserID, TeamID: TestTeamID, Questions: []entity.Question{{ID: "q1", Question: "Q1", Options: []string{"a", "b"}, Type: "single"}}},
+		{ID: "quiz2", QuizName: "Quiz 2", UserID: TestUserID, TeamID: TestTeamID, Questions: []entity.Question{{ID: "q2", Question: "Q2", Options: []string{"c", "d"}, Type: "single"}}},
+	}
+	expectedNextKey := "nextKey123"
+
+	userTeams := []string{TestTeamID}
+	user := &entity.User{ID: TestUserID, TeamsIds: &userTeams}
+
+	mockQuizRepo.On("GetByUser", TestUserID, 10, "").Return(expectedQuizzes, expectedNextKey, nil)
+	mockUserRepo.On("GetByID", TestUserID).Times(3).Return(user, nil)
+
+	result, nextKey, err := quizService.GetQuizzesByUser(TestUserID, 10, "")
+
+	assert.NoError(t, err)
+	assert.Len(t, result, 2)
+	assert.Equal(t, expectedNextKey, nextKey)
+	assert.Equal(t, "quiz1", result[0].QuizID)
+	assert.Equal(t, "Quiz 1", result[0].QuizTitle)
+	assert.Len(t, result[0].QuizQuestions, 1)
+	mockUserRepo.AssertExpectations(t)
+	mockQuizRepo.AssertExpectations(t)
+}
+
+func TestQuizService_GetQuizzesByUser_EmptyUserId(t *testing.T) {
+	quizService := service.NewQuizServiceWithRepo(nil, nil, nil)
+
+	_, _, err := quizService.GetQuizzesByUser("", 10, "")
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, validator.ErrValidation))
+}
+
+func TestQuizService_GetQuizzesByUser_UserNotFound(t *testing.T) {
+	mockUserRepo := new(tests.MockUserRepository)
+	quizService := service.NewQuizServiceWithRepo(nil, mockUserRepo, nil)
+
+	mockUserRepo.On("GetByID", TestUserID).Return(nil, errors.New("user not found"))
+
+	_, _, err := quizService.GetQuizzesByUser(TestUserID, 10, "")
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, service.ErrResourceNotFound))
+	mockUserRepo.AssertExpectations(t)
+}
+
+func TestQuizService_GetQuizzesByUser_InvalidPageSize(t *testing.T) {
+	quizService := service.NewQuizServiceWithRepo(nil, nil, nil)
+
+	_, _, err := quizService.GetQuizzesByUser(TestUserID, 0, "")
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, validator.ErrValidation))
+	assert.Contains(t, err.Error(), "page size must be positive")
+}
+
+func TestQuizService_GetQuizzesByTeam_Success(t *testing.T) {
+	mockQuizRepo := new(tests.MockQuizRepository)
+	mockUserRepo := new(tests.MockUserRepository)
+	mockTeamRepo := new(tests.MockTeamRepository)
+	quizService := service.NewQuizServiceWithRepo(mockTeamRepo, mockUserRepo, mockQuizRepo)
+
+	expectedQuizzes := []entity.Quiz{
+		{ID: "quiz1", QuizName: "Team Quiz 1", TeamID: TestTeamID, Questions: []entity.Question{{ID: "q1", Question: "Q1", Options: []string{"a", "b"}, Type: "single"}}},
+	}
+	expectedNextKey := "teamNextKey"
+
+	team := &entity.Team{Id: TestTeamID}
+	userTeams := []string{TestTeamID}
+	user := &entity.User{ID: TestUserID, TeamsIds: &userTeams}
+
+	mockTeamRepo.On("GetTeamById", TestTeamID).Return(team, nil)
+	mockUserRepo.On("GetByID", TestUserID).Return(user, nil)
+	mockQuizRepo.On("GetByTeam", TestTeamID, 10, "").Return(expectedQuizzes, expectedNextKey, nil)
+
+	result, nextKey, err := quizService.GetQuizzesByTeam(TestUserID, TestTeamID, 10, "")
+
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
+	assert.Equal(t, expectedNextKey, nextKey)
+	assert.Equal(t, "quiz1", result[0].QuizID)
+	assert.Equal(t, "Team Quiz 1", result[0].QuizTitle)
+	mockTeamRepo.AssertExpectations(t)
+	mockUserRepo.AssertExpectations(t)
+	mockQuizRepo.AssertExpectations(t)
+}
+
+func TestQuizService_GetQuizzesByTeam_EmptyUserId(t *testing.T) {
+	quizService := service.NewQuizServiceWithRepo(nil, nil, nil)
+
+	_, _, err := quizService.GetQuizzesByTeam("", TestTeamID, 10, "")
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, validator.ErrValidation))
+}
+
+func TestQuizService_GetQuizzesByTeam_EmptyTeamId(t *testing.T) {
+	quizService := service.NewQuizServiceWithRepo(nil, nil, nil)
+
+	_, _, err := quizService.GetQuizzesByTeam(TestUserID, "", 10, "")
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, validator.ErrValidation))
+}
+
+func TestQuizService_GetQuizzesByTeam_TeamNotFound(t *testing.T) {
+	mockTeamRepo := new(tests.MockTeamRepository)
+	mockUserRepo := new(tests.MockUserRepository)
+	quizService := service.NewQuizServiceWithRepo(mockTeamRepo, mockUserRepo, nil)
+
+	mockTeamRepo.On("GetTeamById", TestTeamID).Return(nil, errors.New("team not found"))
+	mockUserRepo.On("GetByID", TestUserID).Return(&entity.User{ID: TestUserID}, nil)
+
+	_, _, err := quizService.GetQuizzesByTeam(TestUserID, TestTeamID, 10, "")
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, service.ErrResourceNotFound))
+	mockTeamRepo.AssertExpectations(t)
+}
+
+func TestQuizService_GetQuizzesByTeam_UserNotInTeam(t *testing.T) {
+	mockQuizRepo := new(tests.MockQuizRepository)
+	mockUserRepo := new(tests.MockUserRepository)
+	mockTeamRepo := new(tests.MockTeamRepository)
+	quizService := service.NewQuizServiceWithRepo(mockTeamRepo, mockUserRepo, mockQuizRepo)
+
+	team := &entity.Team{Id: TestTeamID}
+	otherTeams := []string{"other-team-1", "other-team-2"}
+	user := &entity.User{ID: TestUserID, TeamsIds: &otherTeams}
+
+	mockTeamRepo.On("GetTeamById", TestTeamID).Return(team, nil)
+	mockUserRepo.On("GetByID", TestUserID).Return(user, nil)
+
+	_, _, err := quizService.GetQuizzesByTeam(TestUserID, TestTeamID, 10, "")
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, service.ErrForbidden))
+	assert.Contains(t, err.Error(), "user not in team")
+	mockTeamRepo.AssertExpectations(t)
+	mockUserRepo.AssertExpectations(t)
+}
+
+func TestQuizService_GetQuizzesByTeam_InvalidPageSize(t *testing.T) {
+	quizService := service.NewQuizServiceWithRepo(nil, nil, nil)
+
+	_, _, err := quizService.GetQuizzesByTeam(TestUserID, TestTeamID, -1, "")
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, validator.ErrValidation))
+	assert.Contains(t, err.Error(), "page size must be positive")
+}
+
+func TestQuizService_GetQuizzesByTeam_WithPagination(t *testing.T) {
+	mockQuizRepo := new(tests.MockQuizRepository)
+	mockUserRepo := new(tests.MockUserRepository)
+	mockTeamRepo := new(tests.MockTeamRepository)
+	quizService := service.NewQuizServiceWithRepo(mockTeamRepo, mockUserRepo, mockQuizRepo)
+
+	expectedQuizzes := []entity.Quiz{
+		{ID: "quiz3", QuizName: "Team Quiz 3", TeamID: TestTeamID, Questions: []entity.Question{{ID: "q3", Question: "Q3", Options: []string{"x", "y"}, Type: "single"}}},
+	}
+
+	team := &entity.Team{Id: TestTeamID}
+	userTeams := []string{TestTeamID}
+	user := &entity.User{ID: TestUserID, TeamsIds: &userTeams}
+
+	mockTeamRepo.On("GetTeamById", TestTeamID).Return(team, nil)
+	mockUserRepo.On("GetByID", TestUserID).Return(user, nil)
+	mockQuizRepo.On("GetByTeam", TestTeamID, 5, "lastKey123").Return(expectedQuizzes, "", nil)
+
+	result, nextKey, err := quizService.GetQuizzesByTeam(TestUserID, TestTeamID, 5, "lastKey123")
+
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
+	assert.Equal(t, "", nextKey)
+	assert.Equal(t, "quiz3", result[0].QuizID)
+	mockTeamRepo.AssertExpectations(t)
+	mockUserRepo.AssertExpectations(t)
+	mockQuizRepo.AssertExpectations(t)
 }
