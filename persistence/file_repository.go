@@ -72,14 +72,14 @@ func (fr *FileRepository) GetByContextID(contextType, contextID string) ([]*enti
 	query := ref.OrderByChild("contextType").EqualTo(contextType)
 	results, err := query.GetOrdered(ctx)
 	if err != nil {
-		return nil, err
+		return make([]*entity.File, 0), nil
 	}
 
 	files := make([]*entity.File, 0)
 	for _, r := range results {
 		var file entity.File
 		if err := r.Unmarshal(&file); err != nil {
-			return nil, err
+			continue // Skip files that can't be unmarshaled
 		}
 		if file.ContextID == contextID {
 			files = append(files, &file)
