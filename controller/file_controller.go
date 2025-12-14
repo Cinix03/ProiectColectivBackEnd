@@ -9,6 +9,7 @@ import (
 	"github.com/SerbanEduard/ProiectColectivBackEnd/model/entity"
 	"github.com/SerbanEduard/ProiectColectivBackEnd/service"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type FileController struct {
@@ -44,9 +45,21 @@ type FileServiceInterface interface {
 //	@Failure	500		{object}	map[string]string
 //	@Router		/teams/{id}/files [post]
 func (fc *FileController) UploadFile(c *gin.Context) {
-	userID, exists := c.Get("userID")
+	claimsI, exists := c.Get("userClaims")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	claims, ok := claimsI.(jwt.MapClaims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid claims"})
+		return
+	}
+
+	userID, err := claims.GetSubject()
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user id not found in claims"})
 		return
 	}
 
@@ -62,7 +75,7 @@ func (fc *FileController) UploadFile(c *gin.Context) {
 	req.ContextType = "team"
 	req.ContextID = teamID
 
-	resp, err := fc.fileService.CreateFile(&req, userID.(string))
+	resp, err := fc.fileService.CreateFile(&req, userID)
 	if err != nil {
 		if strings.Contains(err.Error(), "validation") {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -92,14 +105,26 @@ func (fc *FileController) UploadFile(c *gin.Context) {
 //	@Failure	500		{object}	map[string]string
 //	@Router		/teams/{id}/files/{fileId} [get]
 func (fc *FileController) GetFile(c *gin.Context) {
-	userID, exists := c.Get("userID")
+	claimsI, exists := c.Get("userClaims")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
+	claims, ok := claimsI.(jwt.MapClaims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid claims"})
+		return
+	}
+
+	userID, err := claims.GetSubject()
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user id not found in claims"})
+		return
+	}
+
 	fileID := c.Param("fileId")
-	file, err := fc.fileService.GetFileByID(fileID, userID.(string))
+	file, err := fc.fileService.GetFileByID(fileID, userID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not a member") {
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
@@ -128,9 +153,21 @@ func (fc *FileController) GetFile(c *gin.Context) {
 //	@Failure	500		{object}	map[string]string
 //	@Router		/teams/{id}/files [get]
 func (fc *FileController) GetFilesByTeam(c *gin.Context) {
-	userID, exists := c.Get("userID")
+	claimsI, exists := c.Get("userClaims")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	claims, ok := claimsI.(jwt.MapClaims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid claims"})
+		return
+	}
+
+	userID, err := claims.GetSubject()
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user id not found in claims"})
 		return
 	}
 
@@ -148,7 +185,7 @@ func (fc *FileController) GetFilesByTeam(c *gin.Context) {
 		}
 	}
 
-	resp, err := fc.fileService.GetFilesByTeam(teamID, userID.(string), page, limit)
+	resp, err := fc.fileService.GetFilesByTeam(teamID, userID, page, limit)
 	if err != nil {
 		if strings.Contains(err.Error(), "not a member") {
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
@@ -172,14 +209,26 @@ func (fc *FileController) GetFilesByTeam(c *gin.Context) {
 //	@Failure	500		{object}	map[string]string
 //	@Router		/teams/{id}/files/{fileId} [delete]
 func (fc *FileController) DeleteFile(c *gin.Context) {
-	userID, exists := c.Get("userID")
+	claimsI, exists := c.Get("userClaims")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
+	claims, ok := claimsI.(jwt.MapClaims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid claims"})
+		return
+	}
+
+	userID, err := claims.GetSubject()
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user id not found in claims"})
+		return
+	}
+
 	fileID := c.Param("fileId")
-	if err := fc.fileService.DeleteFile(fileID, userID.(string)); err != nil {
+	if err := fc.fileService.DeleteFile(fileID, userID); err != nil {
 		if strings.Contains(err.Error(), "not a member") {
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 			return
