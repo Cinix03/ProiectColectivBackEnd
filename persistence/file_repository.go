@@ -68,21 +68,15 @@ func (fr *FileRepository) GetByContextID(contextType, contextID string) ([]*enti
 	ctx := context.Background()
 	ref := config.FirebaseDB.NewRef(filesCollection)
 
-	// Query by contextType first, then filter by contextID
-	query := ref.OrderByChild("contextType").EqualTo(contextType)
-	results, err := query.GetOrdered(ctx)
-	if err != nil {
+	var filesMap map[string]*entity.File
+	if err := ref.Get(ctx, &filesMap); err != nil {
 		return make([]*entity.File, 0), nil
 	}
 
 	files := make([]*entity.File, 0)
-	for _, r := range results {
-		var file entity.File
-		if err := r.Unmarshal(&file); err != nil {
-			continue // Skip files that can't be unmarshaled
-		}
-		if file.ContextID == contextID {
-			files = append(files, &file)
+	for _, file := range filesMap {
+		if file.ContextType == contextType && file.ContextID == contextID {
+			files = append(files, file)
 		}
 	}
 	return files, nil
