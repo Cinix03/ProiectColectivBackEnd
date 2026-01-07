@@ -20,7 +20,7 @@ type TeamRequestService struct {
 	teamRequestRepository TeamRequestRepositoryInterface
 	userRepository        UserRepositoryInterface
 	teamRepository        TeamRepositoryInterface
-	teamService           *TeamService
+	teamService           TeamServiceInterface
 }
 
 func NewTeamRequestService() *TeamRequestService {
@@ -36,7 +36,7 @@ func NewTeamRequestServiceWithRepo(
 	trRepo TeamRequestRepositoryInterface,
 	userRepo UserRepositoryInterface,
 	teamRepo TeamRepositoryInterface,
-	teamService *TeamService,
+	teamService TeamServiceInterface,
 ) *TeamRequestService {
 	return &TeamRequestService{
 		teamRequestRepository: trRepo,
@@ -44,6 +44,17 @@ func NewTeamRequestServiceWithRepo(
 		teamRepository:        teamRepo,
 		teamService:           teamService,
 	}
+}
+
+type TeamServiceInterface interface {
+	AddUserToTeam(idUser string, idTeam string) (*entity.User, *entity.Team, error)
+	DeleteUserFromTeam(idUser string, idTeam string) (*entity.User, *entity.Team, error)
+	GetTeamById(id string) (*entity.Team, error)
+	GetXTeamsByPrefix(prefix string, x int) ([]*entity.Team, error)
+	GetTeamsByName(name string) ([]*entity.Team, error)
+	GetAll() ([]*entity.Team, error)
+	Update(team *entity.Team) error
+	Delete(id string) error
 }
 
 func (trs *TeamRequestService) CreateTeamRequest(req *dto.TeamRequestCreateDTO) (*entity.TeamRequest, error) {

@@ -4,18 +4,33 @@ import (
 	"net/http"
 
 	"github.com/SerbanEduard/ProiectColectivBackEnd/model/dto"
+	"github.com/SerbanEduard/ProiectColectivBackEnd/model/entity"
 	"github.com/SerbanEduard/ProiectColectivBackEnd/service"
 	"github.com/gin-gonic/gin"
 )
 
 type TeamRequestController struct {
-	teamRequestService *service.TeamRequestService
+	teamRequestService TeamRequestServiceInterface
 }
 
 func NewTeamRequestController() *TeamRequestController {
 	return &TeamRequestController{
 		teamRequestService: service.NewTeamRequestService(),
 	}
+}
+
+func NewTeamRequestControllerWithService(service TeamRequestServiceInterface) *TeamRequestController {
+	return &TeamRequestController{
+		teamRequestService: service,
+	}
+}
+
+type TeamRequestServiceInterface interface {
+	CreateTeamRequest(req *dto.TeamRequestCreateDTO) (*entity.TeamRequest, error)
+	AcceptTeamRequest(id string) (*entity.User, *entity.Team, error)
+	RejectTeamRequest(id string) error
+	GetAll() ([]*entity.TeamRequest, error)
+	GetByUserId(userId string) ([]*entity.TeamRequest, error)
 }
 
 // CreateTeamRequest

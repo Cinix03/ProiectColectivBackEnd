@@ -70,4 +70,28 @@ var (
 		ToUserID:   TestUserID2,
 		Status:     entity.DENIED,
 	}
+
+	ValidTeam = entity.Team{
+		Id:          TestTeamID,
+		Name:        TestTeamName,
+		Description: TestTeamDescription,
+		IsPublic:    TestTeamIsPublic,
+		UsersIds:    []string{TestUserID},
+		TeamTopic:   TestTeamTopic,
+	}
+
+	ValidTeam2 = entity.Team{
+		Id:          TestTeamID2,
+		Name:        "Second Team",
+		Description: "Another test team",
+		IsPublic:    false,
+		UsersIds:    []string{},
+		TeamTopic:   "Science",
+	}
+
+	ValidTeamRequest = entity.TeamRequest{
+		Id:     TestTeamRequestID,
+		UserID: TestUserID1,
+		TeamID: TestTeamID,
+	}
 )

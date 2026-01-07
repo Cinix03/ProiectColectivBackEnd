@@ -17,6 +17,15 @@ const (
 	TestUserID1 = "user1"
 	TestUserID2 = "user2"
 
+	// Team Test Data
+	TestTeamName        = "Awesome Team"
+	TestTeamDescription = "This is a test team"
+	TestTeamTopic       = "Programming"
+	TestTeamIsPublic    = true
+
+	// Team Request Test Data
+	TestTeamRequestID = "teamRequest123"
+
 	// Error Messages
 	ErrUserNotFound    = "user not found"
 	ErrUsernameExists  = "username already exists"

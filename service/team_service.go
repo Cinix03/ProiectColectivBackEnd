@@ -31,10 +31,10 @@ func NewTeamService() *TeamService {
 	}
 }
 
-func NewTeamServiceWithRepo(UserRepositoryInterface UserRepositoryInterface, teamRepositoryInterface TeamRepositoryInterface) *TeamService {
+func NewTeamServiceWithRepo(userRepo UserRepositoryInterface, teamRepo TeamRepositoryInterface) *TeamService {
 	return &TeamService{
-		userRepository: UserRepositoryInterface,
-		teamRepository: teamRepositoryInterface,
+		userRepository: userRepo,
+		teamRepository: teamRepo,
 	}
 }
 
