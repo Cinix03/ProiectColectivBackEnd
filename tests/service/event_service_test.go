@@ -15,14 +15,14 @@ import (
 func TestEventService_CreateEvent_Success(t *testing.T) {
 	mockEventRepo := new(tests.MockEventRepository)
 	mockTeamRepo := new(tests.MockTeamRepository)
-	mockUserRepo := new(tests. MockUserRepository)
-	
+	mockUserRepo := new(tests.MockUserRepository)
+
 	es := service.NewEventServiceWithRepo(mockEventRepo, mockTeamRepo, mockUserRepo)
 
-	teamMembers := []string{tests.TestUserID1, tests. TestUserID2}
+	teamMembers := []string{tests.TestUserID1, tests.TestUserID2}
 	team := &entity.Team{
 		Id:       tests.TestTeamID,
-		UsersIds:  teamMembers,
+		UsersIds: teamMembers,
 	}
 	user := &entity.User{ID: tests.TestUserID}
 
@@ -30,10 +30,10 @@ func TestEventService_CreateEvent_Success(t *testing.T) {
 
 	mockUserRepo.On("GetByID", tests.TestUserID).Return(user, nil)
 	mockTeamRepo.On("GetTeamById", tests.TestTeamID).Return(team, nil)
-	mockEventRepo.On("Create", mock. MatchedBy(func(e *entity.Event) bool {
+	mockEventRepo.On("Create", mock.MatchedBy(func(e *entity.Event) bool {
 		return e.Name == request.Name &&
 			e.TeamID == request.TeamID &&
-			e.InitiatorID == request. InitiatorID &&
+			e.InitiatorID == request.InitiatorID &&
 			len(e.Statuses) == len(teamMembers)
 	})).Return(nil)
 
@@ -41,8 +41,8 @@ func TestEventService_CreateEvent_Success(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
-	assert.Equal(t, request. Name, resp.Name)
-	assert.Equal(t, request. TeamID, resp.TeamID)
+	assert.Equal(t, request.Name, resp.Name)
+	assert.Equal(t, request.TeamID, resp.TeamID)
 	assert.NotEmpty(t, resp.ID)
 
 	mockEventRepo.AssertExpectations(t)
@@ -57,7 +57,7 @@ func TestEventService_CreateEvent_TeamNotFound(t *testing.T) {
 	es := service.NewEventServiceWithRepo(mockEventRepo, mockTeamRepo, mockUserRepo)
 
 	request := tests.GetValidCreateEventRequest() // Use function
-	user := &entity.User{ID:  tests.TestUserID}
+	user := &entity.User{ID: tests.TestUserID}
 
 	mockUserRepo.On("GetByID", tests.TestUserID).Return(user, nil)
 	mockTeamRepo.On("GetTeamById", tests.TestTeamID).Return(nil, fmt.Errorf(tests.ErrTeamNotFound))
@@ -68,13 +68,13 @@ func TestEventService_CreateEvent_TeamNotFound(t *testing.T) {
 	assert.Nil(t, resp)
 	assert.Contains(t, err.Error(), tests.ErrTeamNotFound)
 
-	mockEventRepo.AssertNotCalled(t, "Create", mock. Anything)
+	mockEventRepo.AssertNotCalled(t, "Create", mock.Anything)
 }
 
 func TestEventService_CreateEvent_UserNotFound(t *testing.T) {
 	mockEventRepo := new(tests.MockEventRepository)
 	mockTeamRepo := new(tests.MockTeamRepository)
-	mockUserRepo := new(tests. MockUserRepository)
+	mockUserRepo := new(tests.MockUserRepository)
 	es := service.NewEventServiceWithRepo(mockEventRepo, mockTeamRepo, mockUserRepo)
 
 	request := tests.GetValidCreateEventRequest() // Use function
@@ -91,7 +91,7 @@ func TestEventService_CreateEvent_UserNotFound(t *testing.T) {
 	mockTeamRepo.AssertNotCalled(t, "GetTeamById", mock.Anything)
 }
 
-func TestEventService_GetEventById_Success(t *testing. T) {
+func TestEventService_GetEventById_Success(t *testing.T) {
 	mockEventRepo := new(tests.MockEventRepository)
 	mockTeamRepo := new(tests.MockTeamRepository)
 	mockUserRepo := new(tests.MockUserRepository)
@@ -99,7 +99,7 @@ func TestEventService_GetEventById_Success(t *testing. T) {
 
 	event := tests.GetValidEvent() // Use function
 
-	mockEventRepo. On("GetByID", tests.TestEventID).Return(&event, nil)
+	mockEventRepo.On("GetByID", tests.TestEventID).Return(&event, nil)
 
 	resp, err := es.GetEventById(tests.TestEventID)
 
@@ -119,7 +119,7 @@ func TestEventService_GetEventById_NotFound(t *testing.T) {
 
 	mockEventRepo.On("GetByID", "invalid-id").Return(nil, fmt.Errorf(tests.ErrEventNotFound))
 
-	resp, err := es. GetEventById("invalid-id")
+	resp, err := es.GetEventById("invalid-id")
 
 	assert.Error(t, err)
 	assert.Nil(t, resp)
@@ -135,7 +135,7 @@ func TestEventService_GetEventsByTeamId_Success(t *testing.T) {
 	es := service.NewEventServiceWithRepo(mockEventRepo, mockTeamRepo, mockUserRepo)
 
 	event1 := tests.GetValidEvent()
-	event2 := tests. GetValidEvent()
+	event2 := tests.GetValidEvent()
 	event2.ID = "event456"
 	events := []*entity.Event{&event1, &event2}
 
@@ -160,7 +160,7 @@ func TestEventService_UpdateEventDetails_Success(t *testing.T) {
 	request := tests.GetValidUpdateEventRequest() // Use function
 
 	mockEventRepo.On("GetByID", tests.TestEventID).Return(&existingEvent, nil)
-	mockEventRepo.On("Update", tests.TestEventID, mock. MatchedBy(func(updates map[string]interface{}) bool {
+	mockEventRepo.On("Update", tests.TestEventID, mock.MatchedBy(func(updates map[string]interface{}) bool {
 		return updates["name"] == request.Name &&
 			updates["description"] == request.Description
 	})).Return(nil)
@@ -183,7 +183,7 @@ func TestEventService_UpdateEventDetails_EventNotFound(t *testing.T) {
 
 	request := tests.GetValidUpdateEventRequest() // Use function
 
-	mockEventRepo.On("GetByID", "invalid-id").Return(nil, fmt.Errorf(tests. ErrEventNotFound))
+	mockEventRepo.On("GetByID", "invalid-id").Return(nil, fmt.Errorf(tests.ErrEventNotFound))
 
 	resp, err := es.UpdateEventDetails("invalid-id", &request)
 
@@ -193,7 +193,7 @@ func TestEventService_UpdateEventDetails_EventNotFound(t *testing.T) {
 	mockEventRepo.AssertNotCalled(t, "Update", mock.Anything, mock.Anything)
 }
 
-func TestEventService_UpdateUserStatus_Success(t *testing. T) {
+func TestEventService_UpdateUserStatus_Success(t *testing.T) {
 	mockEventRepo := new(tests.MockEventRepository)
 	mockTeamRepo := new(tests.MockTeamRepository)
 	mockUserRepo := new(tests.MockUserRepository)
@@ -201,11 +201,11 @@ func TestEventService_UpdateUserStatus_Success(t *testing. T) {
 
 	existingEvent := tests.GetValidEvent()
 	request := &tests.ValidUpdateEventStatusRequest
-	user := &entity.User{ID:  request.UserID}
+	user := &entity.User{ID: request.UserID}
 
 	mockEventRepo.On("GetByID", tests.TestEventID).Return(&existingEvent, nil)
 	mockUserRepo.On("GetByID", request.UserID).Return(user, nil)
-	mockEventRepo.On("Update", tests. TestEventID, mock.MatchedBy(func(updates map[string]interface{}) bool {
+	mockEventRepo.On("Update", tests.TestEventID, mock.MatchedBy(func(updates map[string]interface{}) bool {
 		if statuses, ok := updates["statuses"].(map[string]entity.EventStatus); ok {
 			return statuses[request.UserID] == entity.EventStatus(request.Status)
 		}
@@ -257,10 +257,10 @@ func TestEventService_UpdateUserStatus_InvalidStatus(t *testing.T) {
 	existingEvent := tests.GetValidEvent()
 
 	request := &dto.UpdateEventStatusRequest{
-		UserID:  tests.TestUserID1,
+		UserID: tests.TestUserID1,
 		Status: "invalid-status",
 	}
-	user := &entity.User{ID: request. UserID}
+	user := &entity.User{ID: request.UserID}
 
 	mockEventRepo.On("GetByID", tests.TestEventID).Return(&existingEvent, nil)
 	mockUserRepo.On("GetByID", request.UserID).Return(user, nil)
@@ -291,11 +291,11 @@ func TestEventService_UpdateUserStatus_UserNotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, resp)
 
-	mockEventRepo.AssertNotCalled(t, "Update", mock.Anything, mock. Anything)
+	mockEventRepo.AssertNotCalled(t, "Update", mock.Anything, mock.Anything)
 }
 
 func TestEventService_DeleteEvent_Success(t *testing.T) {
-	mockEventRepo := new(tests. MockEventRepository)
+	mockEventRepo := new(tests.MockEventRepository)
 	mockTeamRepo := new(tests.MockTeamRepository)
 	mockUserRepo := new(tests.MockUserRepository)
 	es := service.NewEventServiceWithRepo(mockEventRepo, mockTeamRepo, mockUserRepo)
@@ -305,20 +305,20 @@ func TestEventService_DeleteEvent_Success(t *testing.T) {
 	mockEventRepo.On("GetByID", tests.TestEventID).Return(&event, nil)
 	mockEventRepo.On("Delete", tests.TestEventID).Return(nil)
 
-	err := es.DeleteEvent(tests. TestEventID)
+	err := es.DeleteEvent(tests.TestEventID)
 
 	assert.NoError(t, err)
 
 	mockEventRepo.AssertExpectations(t)
 }
 
-func TestEventService_DeleteEvent_NotFound(t *testing. T) {
+func TestEventService_DeleteEvent_NotFound(t *testing.T) {
 	mockEventRepo := new(tests.MockEventRepository)
 	mockTeamRepo := new(tests.MockTeamRepository)
 	mockUserRepo := new(tests.MockUserRepository)
 	es := service.NewEventServiceWithRepo(mockEventRepo, mockTeamRepo, mockUserRepo)
 
-	mockEventRepo.On("GetByID", "invalid-id").Return(nil, fmt.Errorf(tests. ErrEventNotFound))
+	mockEventRepo.On("GetByID", "invalid-id").Return(nil, fmt.Errorf(tests.ErrEventNotFound))
 
 	err := es.DeleteEvent("invalid-id")
 
