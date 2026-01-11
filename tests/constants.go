@@ -31,6 +31,7 @@ const (
 	HTTPMethodPUT      = "PUT"
 	PathUsersSignup    = "/users/signup"
 	PathUserStatistics = "/users/123/statistics"
+	PathEvents         = "/events"
 
 	// Content Types
 	ContentTypeJSON = "application/json"
@@ -45,4 +46,17 @@ const (
 	// JSON Keys
 	JSONKeyError   = "error"
 	JSONKeyMessage = "message"
+
+	// Test Event Data
+	TestEventID          = "event123"
+	TestEventName        = "Team Meeting"
+	TestEventDescription = "Weekly sync meeting"
+	TestEventDuration    = int64(3600000) // 1 hour in milliseconds
+
+	// Event Error Messages
+	ErrTeamNotFound       = "team not found"
+	ErrEventNotFound      = "event not found"
+	ErrInvalidEventStatus = "invalid event status"
+	ErrStatusAlreadySet   = "status is already set to this value"
+	ErrUserNotInEvent     = "user is not part of this event"
 )
