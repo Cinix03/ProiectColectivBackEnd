@@ -320,6 +320,50 @@ func (m *MockQuizRepository) GetByTeam(id string, pageSize int, lastKey string) 
 	return args.Get(0).([]entity.Quiz), args.String(1), args.Error(2)
 }
 
+// MockFileRepository is used for file service tests
+type MockFileRepository struct {
+	mock.Mock
+}
+
+func (m *MockFileRepository) Create(file *entity.File) error {
+	args := m.Called(file)
+	return args.Error(0)
+}
+
+func (m *MockFileRepository) GetByID(id string) (*entity.File, error) {
+	args := m.Called(id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*entity.File), args.Error(1)
+}
+
+func (m *MockFileRepository) GetAll() ([]*entity.File, error) {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*entity.File), args.Error(1)
+}
+
+func (m *MockFileRepository) Update(file *entity.File) error {
+	args := m.Called(file)
+	return args.Error(0)
+}
+
+func (m *MockFileRepository) Delete(id string) error {
+	args := m.Called(id)
+	return args.Error(0)
+}
+
+func (m *MockFileRepository) GetByContextID(contextType, contextID string) ([]*entity.File, error) {
+	args := m.Called(contextType, contextID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*entity.File), args.Error(1)
+}
+
 // MockQuizService is used by controller tests to mock service layer behavior.
 type MockQuizService struct {
 	mock.Mock
@@ -440,6 +484,88 @@ func (m *MockTeamService) Update(team *entity.Team) error {
 }
 
 func (m *MockTeamService) Delete(id string) error {
+// Events
+
+type MockEventRepository struct {
+	mock.Mock
+}
+
+func (m *MockEventRepository) Create(event *entity.Event) error {
+	args := m.Called(event)
+	return args.Error(0)
+}
+
+func (m *MockEventRepository) GetByID(id string) (*entity.Event, error) {
+	args := m.Called(id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*entity.Event), args.Error(1)
+}
+
+func (m *MockEventRepository) GetByTeamID(teamID string) ([]*entity.Event, error) {
+	args := m.Called(teamID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*entity.Event), args.Error(1)
+}
+
+func (m *MockEventRepository) Update(id string, updates map[string]interface{}) error {
+	args := m.Called(id, updates)
+	return args.Error(0)
+}
+
+func (m *MockEventRepository) Delete(id string) error {
+	args := m.Called(id)
+	return args.Error(0)
+}
+
+type MockEventService struct {
+	mock.Mock
+}
+
+func (m *MockEventService) CreateEvent(request *dto.CreateEventRequest) (*dto.EventDTO, error) {
+	args := m.Called(request)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*dto.EventDTO), args.Error(1)
+}
+
+func (m *MockEventService) GetEventById(id string) (*dto.EventDTO, error) {
+	args := m.Called(id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*dto.EventDTO), args.Error(1)
+}
+
+func (m *MockEventService) GetEventsByTeamId(teamID string) ([]*dto.EventDTO, error) {
+	args := m.Called(teamID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*dto.EventDTO), args.Error(1)
+}
+
+func (m *MockEventService) UpdateEventDetails(id string, request *dto.UpdateEventRequest) (*dto.EventDTO, error) {
+	args := m.Called(id, request)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*dto.EventDTO), args.Error(1)
+}
+
+func (m *MockEventService) UpdateUserStatus(id string, request *dto.UpdateEventStatusRequest) (*dto.EventDTO, error) {
+	args := m.Called(id, request)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*dto.EventDTO), args.Error(1)
+}
+
+func (m *MockEventService) DeleteEvent(id string) error {
 	args := m.Called(id)
 	return args.Error(0)
 }
@@ -456,6 +582,11 @@ func (m *MockTeamRequestRepository) Create(req *entity.TeamRequest) error {
 }
 
 func (m *MockTeamRequestRepository) GetById(id string) (*entity.TeamRequest, error) {
+type MockTeamService struct {
+	mock.Mock
+}
+
+func (m *MockTeamService) GetTeamById(id string) (*entity.Team, error) {
 	args := m.Called(id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -523,4 +654,63 @@ func (m *MockTeamRequestService) GetByUserId(userID string) ([]*entity.TeamReque
 		return nil, args.Error(1)
 	}
 	return args.Get(0).([]*entity.TeamRequest), args.Error(1)
+	return args.Get(0).(*entity.Team), args.Error(1)
+}
+
+func (m *MockTeamService) CreateTeam(request *dto.TeamRequest) (*entity.Team, error) {
+	args := m.Called(request)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*entity.Team), args.Error(1)
+}
+
+func (m *MockTeamService) AddUserToTeam(idUser string, idTeam string) (*entity.User, *entity.Team, error) {
+	args := m.Called(idUser, idTeam)
+	if args.Get(0) == nil {
+		return nil, nil, args.Error(2)
+	}
+	return args.Get(0).(*entity.User), args.Get(1).(*entity.Team), args.Error(2)
+}
+
+func (m *MockTeamService) DeleteUserFromTeam(idUser string, idTeam string) (*entity.User, *entity.Team, error) {
+	args := m.Called(idUser, idTeam)
+	if args.Get(0) == nil {
+		return nil, nil, args.Error(2)
+	}
+	return args.Get(0).(*entity.User), args.Get(1).(*entity.Team), args.Error(2)
+}
+
+func (m *MockTeamService) GetTeamsByName(name string) ([]*entity.Team, error) {
+	args := m.Called(name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*entity.Team), args.Error(1)
+}
+
+func (m *MockTeamService) GetAll() ([]*entity.Team, error) {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*entity.Team), args.Error(1)
+}
+
+func (m *MockTeamService) Update(team *entity.Team) error {
+	args := m.Called(team)
+	return args.Error(0)
+}
+
+func (m *MockTeamService) Delete(id string) error {
+	args := m.Called(id)
+	return args.Error(0)
+}
+
+func (m *MockTeamService) GetXTeamsByPrefix(prefix string, x int) ([]*entity.Team, error) {
+	args := m.Called(prefix, x)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*entity.Team), args.Error(1)
 }
