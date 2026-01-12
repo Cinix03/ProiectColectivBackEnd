@@ -45,11 +45,13 @@ func SetupRoutes() *gin.Engine {
 
 	SetupUserRoutes(r)
 	SetupTeamRoutes(r)
+	FileRoutes(r)
 	SetupMessageRoutes(r)
 	SetupFriendRequestRoutes(r)
 	VoiceRoutes(r)
 	SetupQuizRoutes(r)
 	SetupTeamRequestRoutes(r)
+	SetupEventRoutes(r)
 
 	return r
 }
