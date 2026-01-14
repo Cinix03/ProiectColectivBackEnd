@@ -6,6 +6,7 @@ import (
 	"github.com/SerbanEduard/ProiectColectivBackEnd/model/dto"
 	"github.com/SerbanEduard/ProiectColectivBackEnd/model/entity"
 	"github.com/SerbanEduard/ProiectColectivBackEnd/persistence"
+	"github.com/SerbanEduard/ProiectColectivBackEnd/validator"
 )
 
 type TeamRequestRepositoryInterface interface {
@@ -58,8 +59,8 @@ type TeamServiceInterface interface {
 }
 
 func (trs *TeamRequestService) CreateTeamRequest(req *dto.TeamRequestCreateDTO) (*entity.TeamRequest, error) {
-	if req.UserID == "" || req.TeamID == "" {
-		return nil, errors.New("userId and teamId are required")
+	if err := validator.ValidateTeamRequestCreateDTO(req); err != nil {
+		return nil, err
 	}
 
 	user, err := trs.userRepository.GetByID(req.UserID)
