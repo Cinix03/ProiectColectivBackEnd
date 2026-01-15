@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/SerbanEduard/ProiectColectivBackEnd/model/dto"
 	"github.com/SerbanEduard/ProiectColectivBackEnd/model/entity"
@@ -61,7 +62,10 @@ func (ts *TeamService) CreateTeam(request *dto.TeamRequest) (*entity.Team, error
 	if err := ts.teamRepository.Create(&team); err != nil {
 		return nil, err
 	}
-	ts.AddUserToTeam(request.UserId, id)
+	_, _, err = ts.AddUserToTeam(request.UserId, id)
+	if err != nil {
+		return nil, err
+	}
 	return ts.teamRepository.GetTeamById(id)
 }
 
@@ -126,6 +130,28 @@ func (ts *TeamService) DeleteUserFromTeam(idUser string, idTeam string) (*entity
 		return nil, nil, err
 	}
 	return user, team, nil
+}
+
+func (ts *TeamService) GetUsersByTeam(idTeam string) ([]*dto.UserResponse, error) {
+	if strings.TrimSpace(idTeam) == "" {
+		return nil, errors.New("team ID is required")
+	}
+
+	team, err := ts.teamRepository.GetTeamById(idTeam)
+	if err != nil {
+		return nil, errors.New("team not found")
+	}
+
+	var users []*dto.UserResponse
+	for _, userId := range team.UsersIds {
+		user, err := ts.userRepository.GetByID(userId)
+		if err != nil {
+			continue
+		}
+		userResponse := dto.NewUserResponse(user)
+		users = append(users, &userResponse)
+	}
+	return users, nil
 }
 
 func (ts *TeamService) GetTeamById(id string) (*entity.Team, error) {

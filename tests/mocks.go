@@ -574,6 +574,14 @@ func (m *MockTeamService) GetXTeamsByPrefix(prefix string, x int) ([]*entity.Tea
 	return args.Get(0).([]*entity.Team), args.Error(1)
 }
 
+func (m *MockTeamService) GetUsersByTeam(idTeam string) ([]*dto.UserResponse, error) {
+	args := m.Called(idTeam)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*dto.UserResponse), args.Error(1)
+}
+
 // --- TeamRequest mocks ---
 
 type MockTeamRequestRepository struct {

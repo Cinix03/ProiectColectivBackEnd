@@ -3,6 +3,7 @@ package controller
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/SerbanEduard/ProiectColectivBackEnd/model/dto"
 	"github.com/SerbanEduard/ProiectColectivBackEnd/model/entity"
@@ -42,6 +43,7 @@ type TeamServiceInterface interface {
 	CreateTeam(request *dto.TeamRequest) (*entity.Team, error)
 	AddUserToTeam(idUser string, idTeam string) (*entity.User, *entity.Team, error)
 	DeleteUserFromTeam(idUser string, idTeam string) (*entity.User, *entity.Team, error)
+	GetUsersByTeam(idTeam string) ([]*dto.UserResponse, error)
 	GetTeamById(id string) (*entity.Team, error)
 	GetXTeamsByPrefix(prefix string, x int) ([]*entity.Team, error)
 	GetTeamsByName(name string) ([]*entity.Team, error)
@@ -215,6 +217,41 @@ func (tc *TeamController) DeleteUserFromTeam(c *gin.Context) {
 	}
 	resp := dto.NewAddUserToTeamResponse(*user, *team)
 	c.JSON(http.StatusOK, resp)
+}
+
+// GetUsersByTeam
+//
+//	@Summary		Get users by team ID
+//	@Description	Get all users that are members of a specific team
+//	@Security		Bearer
+//	@Accept			json
+//	@Param			id	path		string	true	"Team ID"
+//	@Success		200	{array}		dto.UserResponse
+//	@Failure		400	{object}	map[string]interface{}	"Bad Request - Invalid team ID"
+//	@Failure		404	{object}	map[string]interface{}	"Team not found"
+//	@Failure		500	{object}	map[string]interface{}	"Internal Server Error"
+//	@Router			/teams/{id}/users [get]
+func (tc *TeamController) GetUsersByTeam(c *gin.Context) {
+	teamID := c.Param("id")
+
+	if strings.TrimSpace(teamID) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Team ID is required"})
+		return
+	}
+
+	users, err := tc.teamService.GetUsersByTeam(teamID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "team not found") {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		} else if strings.Contains(err.Error(), "invalid") || strings.Contains(err.Error(), "required") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, users)
 }
 
 // UpdateTeam
