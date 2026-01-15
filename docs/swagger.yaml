@@ -1842,6 +1842,42 @@ paths:
       security:
       - Bearer: []
       summary: Get file by id (with content)
+  /teams/{id}/users:
+    get:
+      consumes:
+      - application/json
+      description: Get all users that are members of a specific team
+      parameters:
+      - description: Team ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.UserResponse'
+            type: array
+        "400":
+          description: Bad Request - Invalid team ID
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Team not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Get users by team ID
   /teams/users:
     delete:
       consumes:
