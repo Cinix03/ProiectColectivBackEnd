@@ -113,7 +113,7 @@ func (uc *UserController) GetUser(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, user)
+	c.JSON(http.StatusOK, dto.NewUserResponse(user))
 }
 
 // GetAllUsers
@@ -132,7 +132,11 @@ func (uc *UserController) GetAllUsers(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, users)
+	var response []dto.UserResponse
+	for _, user := range users {
+		response = append(response, dto.NewUserResponse(user))
+	}
+	c.JSON(http.StatusOK, response)
 }
 
 // UpdateUser

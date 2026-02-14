@@ -121,8 +121,10 @@ func (mc *MessageController) NewMessage(c *gin.Context) {
 		c.JSON(http.StatusCreated, resp)
 
 		// Send to team members via WebSocket
-		team, _ := mc.teamService.GetTeamById(request.TeamId)
-		mc.hub.SendMany(team.UsersIds, *hub.NewMessage(hub.TeamBroadcast, resp))
+		team, err := mc.teamService.GetTeamById(request.TeamId)
+		if err == nil && team != nil {
+			mc.hub.SendMany(team.UsersIds, *hub.NewMessage(hub.TeamBroadcast, resp))
+		}
 
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": BadMessageTypeError})
@@ -143,11 +145,11 @@ func (mc *MessageController) NewMessage(c *gin.Context) {
 func (mc *MessageController) GetMessage(c *gin.Context) {
 	id := c.Param("id")
 	message, err := mc.messageService.GetMessageByID(id)
-	if err.Error() == entity.BadConversationKey {
-		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
-		return
-	}
 	if err != nil {
+		if err.Error() == entity.BadConversationKey {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusNotFound, gin.H{"error": MessageNotFoundError})
 		return
 	}

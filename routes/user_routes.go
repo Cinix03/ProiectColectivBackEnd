@@ -10,8 +10,8 @@ func SetupUserRoutes(r *gin.Engine) {
 
 	r.POST("/users/signup", userController.SignUp)
 	r.POST("/users/login", userController.Login)
-	r.GET("/users/:id", userController.GetUser)
-	r.GET("/users", userController.GetAllUsers)
+	r.GET("/users/:id", controller.JWTAuthMiddleware(), userController.GetUser)
+	r.GET("/users", controller.JWTAuthMiddleware(), userController.GetAllUsers)
 	r.PATCH("/users/:id", controller.JWTAuthMiddleware(), controller.RequireOwner("id"), userController.UpdateUser)
 	r.PUT("/users/:id/password", controller.JWTAuthMiddleware(), controller.RequireOwner("id"), userController.UpdateUserPassword)
 	r.GET("/users/:id/statistics", controller.JWTAuthMiddleware(), controller.RequireOwner("id"), userController.GetUserStatistics)
