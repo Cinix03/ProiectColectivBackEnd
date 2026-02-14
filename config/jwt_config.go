@@ -12,7 +12,7 @@ import (
 func GetJWTSecret() string {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		secret = "replace_this_with_a_secure_secret"
+		panic("JWT_SECRET not set")
 	}
 	return secret
 }
