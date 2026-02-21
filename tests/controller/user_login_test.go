@@ -23,7 +23,7 @@ func TestUserController_Login_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mockService := new(tests.MockUserService)
-	userController := controller.NewUserControllerWithService(mockService)
+	userController := controller.NewUserControllerWithService(mockService, nil)
 
 	topics := &[]model.TopicOfInterest{model.Programming}
 	user := &entity.User{
@@ -64,7 +64,7 @@ func TestUserController_Login_InvalidCredentials(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mockService := new(tests.MockUserService)
-	userController := controller.NewUserControllerWithService(mockService)
+	userController := controller.NewUserControllerWithService(mockService, nil)
 
 	// service returns error (user not found)
 	loginReq := dto.LoginRequest{Email: tests.TestEmail, Password: "wrongpass"}

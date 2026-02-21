@@ -55,14 +55,19 @@ func (h *Hub[T]) Unregister(client *Client[T]) {
 }
 
 func (h *Hub[T]) Send(clientID string, msg T) {
-	h.mu.Lock()
+	h.mu.RLock()
 	client, ok := h.clients[clientID]
-	h.mu.Unlock()
+	h.mu.RUnlock()
 
 	if !ok {
 		// Client is offline
 		return
 	}
+
+	// Protect against sending on a closed channel if Unregister races with Send.
+	defer func() {
+		recover()
+	}()
 
 	select {
 	case client.outbound <- msg:
@@ -91,10 +96,8 @@ func (h *Hub[T]) writePump(client *Client[T]) {
 		case msg, ok := <-client.outbound:
 			if !ok {
 				// The hub closed the channel
-				err := client.Conn.WriteControl(websocket.CloseMessage, []byte{}, time.Now().Add(writeWait))
-				if err != nil {
-					return
-				}
+				_ = client.Conn.WriteControl(websocket.CloseMessage, []byte{}, time.Now().Add(writeWait))
+				return
 			}
 
 			// Send the message as JSON

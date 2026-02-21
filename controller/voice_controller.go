@@ -11,6 +11,7 @@ import (
 
 	"github.com/SerbanEduard/ProiectColectivBackEnd/model/entity"
 	"github.com/SerbanEduard/ProiectColectivBackEnd/service"
+	"github.com/SerbanEduard/ProiectColectivBackEnd/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
@@ -37,7 +38,19 @@ const (
 )
 
 var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true },
+	CheckOrigin: func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+		allowed := []string{
+			"https://studyflow-6qwx.onrender.com",
+			"http://localhost:3000",
+		}
+		for _, a := range allowed {
+			if origin == a {
+				return true
+			}
+		}
+		return false
+	},
 }
 
 type RoomResponse struct {
@@ -77,12 +90,16 @@ func NewVoiceController() *VoiceController {
 //	@Failure		400			{object}	map[string]string
 //	@Router			/voice/private/call [post]
 func (vc *VoiceController) StartPrivateCall(c *gin.Context) {
-	callerId := c.Query("callerId")
+	callerId, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 	targetId := c.Query("targetId")
 	teamId := c.Query("teamId")
 
-	if callerId == "" || targetId == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Both callerId and targetId are required"})
+	if targetId == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "targetId is required"})
 		return
 	}
 
@@ -126,10 +143,9 @@ func (vc *VoiceController) StartPrivateCall(c *gin.Context) {
 //	@Failure		400		{object}	map[string]string
 //	@Router			/voice/joinable [get]
 func (vc *VoiceController) GetJoinableRooms(c *gin.Context) {
-	userId := c.Query("userId")
-
-	if userId == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "userId query parameter is required"})
+	userId, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
@@ -189,21 +205,16 @@ func (vc *VoiceController) GetJoinableRooms(c *gin.Context) {
 //	@Router			/voice/rooms/{teamId} [post]
 func (vc *VoiceController) CreateVoiceRoom(c *gin.Context) {
 	teamId := c.Param("teamId")
-	userId := c.Query("userId")
+	userId, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 	roomName := c.Query("name")
 
 	if roomName == "" {
 		roomName = DefaultRoomName
 	}
-
-	vc.mu.RLock()
-	if _, exists := vc.rooms[teamId]; exists {
-		vc.mu.RUnlock()
-		log.Printf("[voice] CreateVoiceRoom: room already exists for teamId=%s", teamId)
-		c.JSON(http.StatusConflict, gin.H{"error": ErrorRoomExists})
-		return
-	}
-	vc.mu.RUnlock()
 
 	newRoom := &entity.VoiceRoom{
 		Id:        teamId,
@@ -216,8 +227,13 @@ func (vc *VoiceController) CreateVoiceRoom(c *gin.Context) {
 	}
 
 	vc.mu.Lock()
+	if _, exists := vc.rooms[teamId]; exists {
+		vc.mu.Unlock()
+		log.Printf("[voice] CreateVoiceRoom: room already exists for teamId=%s", teamId)
+		c.JSON(http.StatusConflict, gin.H{"error": ErrorRoomExists})
+		return
+	}
 	vc.rooms[teamId] = newRoom
-
 	if vc.pendingDel[teamId] {
 		delete(vc.pendingDel, teamId)
 	}
@@ -279,7 +295,11 @@ func (vc *VoiceController) GetActiveRooms(c *gin.Context) {
 //	@Router			/voice/join/{roomId} [get]
 func (vc *VoiceController) JoinVoiceRoom(c *gin.Context) {
 	roomId := c.Param("roomId")
-	userId := c.Query("userId")
+	userId, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
 	log.Printf("[voice] JoinVoiceRoom: request roomId=%s userId=%s", roomId, userId)
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
@@ -529,25 +549,24 @@ func (vc *VoiceController) handleUserDisconnect(room *entity.VoiceRoom, conn *we
 	room.Mutex.Lock()
 	delete(room.Clients, conn)
 	// Clear presenter if the user was sharing the screen
-	if room.ScreenPresenter == userId {
+	wasPresenter := room.ScreenPresenter == userId
+	if wasPresenter {
 		room.ScreenPresenter = ""
 	}
+	currentPresenter := room.ScreenPresenter
+	remaining := len(room.Clients)
 	room.Mutex.Unlock()
 
 	vc.notifyUserLeft(room, userId)
 
 	// If presenter cleared, notify peers of screen-state change
-	if userId != "" {
+	if wasPresenter {
 		vc.broadcastToAll(room, map[string]interface{}{
 			"type":        MsgTypeScreenState,
-			"presenterId": room.ScreenPresenter,
-			"active":      room.ScreenPresenter != "",
+			"presenterId": currentPresenter,
+			"active":      currentPresenter != "",
 		})
 	}
-
-	room.Mutex.RLock()
-	remaining := len(room.Clients)
-	room.Mutex.RUnlock()
 
 	if remaining == 0 {
 		vc.mu.Lock()
