@@ -26,7 +26,7 @@ func TestUserController_SignUp_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mockService := new(tests.MockUserService)
-	userController := controller.NewUserControllerWithService(mockService)
+	userController := controller.NewUserControllerWithService(mockService, nil)
 
 	request := tests.ValidSignUpRequest
 
@@ -51,7 +51,7 @@ func TestUserController_SignUp_UsernameExists(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mockService := new(tests.MockUserService)
-	userController := controller.NewUserControllerWithService(mockService)
+	userController := controller.NewUserControllerWithService(mockService, nil)
 
 	request := tests.ExistingUsernameRequest
 
@@ -79,7 +79,7 @@ func TestUserController_SignUp_EmailExists(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mockService := new(tests.MockUserService)
-	userController := controller.NewUserControllerWithService(mockService)
+	userController := controller.NewUserControllerWithService(mockService, nil)
 
 	request := tests.ExistingEmailRequest
 
@@ -107,7 +107,7 @@ func TestUserController_UpdateUserStatistics_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mockService := new(tests.MockUserService)
-	userController := controller.NewUserControllerWithService(mockService)
+	userController := controller.NewUserControllerWithService(mockService, nil)
 
 	request := tests.ValidUpdateStatisticsRequest
 
