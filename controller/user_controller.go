@@ -2,7 +2,6 @@ package controller
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -31,9 +30,10 @@ func NewUserController() *UserController {
 	}
 }
 
-func NewUserControllerWithService(userService UserServiceInterface) *UserController {
+func NewUserControllerWithService(userService UserServiceInterface, friendRequestService service.FriendRequestServiceInterface) *UserController {
 	return &UserController{
-		userService: userService,
+		userService:          userService,
+		friendRequestService: friendRequestService,
 	}
 }
 
@@ -246,7 +246,11 @@ func (uc *UserController) GetUserStatistics(c *gin.Context) {
 		return
 	}
 	if statistics == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Errorf(userNotFoundError)})
+		c.JSON(http.StatusOK, gin.H{
+			"userId":              id,
+			"totalTimeSpentOnApp": 0,
+			"timeSpentOnTeams":    []interface{}{},
+		})
 		return
 	}
 

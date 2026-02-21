@@ -2,6 +2,7 @@ package controller
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/SerbanEduard/ProiectColectivBackEnd/hub"
 	"github.com/SerbanEduard/ProiectColectivBackEnd/model/dto"
@@ -211,10 +212,83 @@ func (mc *MessageController) GetMessages(c *gin.Context) {
 	}
 }
 
+// EditMessage
+//
+//	@Summary	Edit a message
+//	@Security	Bearer
+//	@Accept		json
+//	@Produce	json
+//	@Param		id		path		string				true	"The message ID"
+//	@Param		request	body		map[string]string	true	"Updated text content"
+//	@Success	200		{object}	dto.MessageDTO
+//	@Failure	400		{object}	map[string]interface{}	"Bad Request"
+//	@Failure	403		{object}	map[string]interface{}	"Forbidden"
+//	@Failure	404		{object}	map[string]interface{}	"Not Found"
+//	@Router		/messages/{id} [put]
 func (mc *MessageController) EditMessage(c *gin.Context) {
-	// TODO: implement
+	id := c.Param("id")
+
+	var body struct {
+		TextContent string `json:"textContent" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	resp, err := mc.messageService.EditMessage(id, userID, body.TextContent)
+	if err != nil {
+		if err.Error() == MessageNotFoundError {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		if strings.HasPrefix(err.Error(), "forbidden") {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
 
+// DeleteMessage
+//
+//	@Summary	Delete a message
+//	@Security	Bearer
+//	@Param		id	path	string	true	"The message ID"
+//	@Success	204	"No Content"
+//	@Failure	403	{object}	map[string]interface{}	"Forbidden"
+//	@Failure	404	{object}	map[string]interface{}	"Not Found"
+//	@Router		/messages/{id} [delete]
 func (mc *MessageController) DeleteMessage(c *gin.Context) {
-	// TODO: implement
+	id := c.Param("id")
+
+	userID, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := mc.messageService.DeleteMessage(id, userID); err != nil {
+		if err.Error() == MessageNotFoundError {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		if strings.HasPrefix(err.Error(), "forbidden") {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }

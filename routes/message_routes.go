@@ -16,7 +16,7 @@ func SetupMessageRoutes(r *gin.Engine) {
 		protected.GET("/messages", messageController.GetMessages)
 		protected.GET("/messages/:id", messageController.GetMessage)
 		protected.GET("/messages/connect", messageController.Connect)
-
-		// TODO: edit messages
+		protected.PUT("/messages/:id", messageController.EditMessage)
+		protected.DELETE("/messages/:id", messageController.DeleteMessage)
 	}
 }

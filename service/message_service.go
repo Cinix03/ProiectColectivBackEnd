@@ -37,6 +37,8 @@ type MessageServiceInterface interface {
 	GetMessageByID(id string) (*dto.MessageDTO, error)
 	GetDirectMessages(user1Id, user2Id string) ([]*dto.MessageDTO, error)
 	GetTeamMessages(teamId string) ([]*dto.MessageDTO, error)
+	EditMessage(id string, senderID string, newText string) (*dto.MessageDTO, error)
+	DeleteMessage(id string, senderID string) error
 }
 
 func (ms *MessageService) CreateDirectMessage(request *dto.DirectMessageRequest) (*dto.MessageDTO, error) {
@@ -111,9 +113,13 @@ func (ms *MessageService) CreateTeamMessage(request *dto.TeamMessageRequest) (*d
 
 func (ms *MessageService) GetMessageByID(id string) (*dto.MessageDTO, error) {
 	message, err := ms.messageRepo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+
 	receiverId, key_err := entity.GetReceiverIdFromKey(message.SenderID, message.ConversationKey)
 	if message.ConversationKey != "" && key_err != nil {
-		return nil, err
+		return nil, key_err
 	}
 
 	sender, err := ms.userRepo.GetByID(message.SenderID)
@@ -123,7 +129,7 @@ func (ms *MessageService) GetMessageByID(id string) (*dto.MessageDTO, error) {
 
 	senderDTO := dto.NewSenderDTO(sender)
 	dtoMessage := dto.NewMessageDTO(message.ID, receiverId, message.TeamID, message.TextContent, message.SentAt, *senderDTO)
-	return dtoMessage, err
+	return dtoMessage, nil
 }
 
 func (ms *MessageService) GetDirectMessages(user1Id, user2Id string) ([]*dto.MessageDTO, error) {
@@ -139,7 +145,7 @@ func (ms *MessageService) GetDirectMessages(user1Id, user2Id string) ([]*dto.Mes
 	for _, message := range messages {
 		receiverId, key_err := entity.GetReceiverIdFromKey(message.SenderID, message.ConversationKey)
 		if message.ConversationKey != "" && key_err != nil {
-			return nil, err
+			return nil, key_err
 		}
 
 		sender, err := ms.userRepo.GetByID(message.SenderID)
@@ -173,4 +179,47 @@ func (ms *MessageService) GetTeamMessages(teamId string) ([]*dto.MessageDTO, err
 		dtoMessages = append(dtoMessages, dtoMessage)
 	}
 	return dtoMessages, err
+}
+
+func (ms *MessageService) EditMessage(id string, senderID string, newText string) (*dto.MessageDTO, error) {
+	message, err := ms.messageRepo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	if message.SenderID != senderID {
+		return nil, fmt.Errorf("forbidden: only the sender can edit this message")
+	}
+
+	if err := ms.messageRepo.Update(id, map[string]interface{}{"textContent": newText}); err != nil {
+		return nil, err
+	}
+
+	message.TextContent = newText
+
+	receiverId, key_err := entity.GetReceiverIdFromKey(message.SenderID, message.ConversationKey)
+	if message.ConversationKey != "" && key_err != nil {
+		return nil, key_err
+	}
+
+	sender, err := ms.userRepo.GetByID(message.SenderID)
+	if err != nil {
+		return nil, fmt.Errorf("sender not found")
+	}
+
+	senderDTO := dto.NewSenderDTO(sender)
+	return dto.NewMessageDTO(message.ID, receiverId, message.TeamID, message.TextContent, message.SentAt, *senderDTO), nil
+}
+
+func (ms *MessageService) DeleteMessage(id string, senderID string) error {
+	message, err := ms.messageRepo.GetByID(id)
+	if err != nil {
+		return err
+	}
+
+	if message.SenderID != senderID {
+		return fmt.Errorf("forbidden: only the sender can delete this message")
+	}
+
+	return ms.messageRepo.Delete(id)
 }
