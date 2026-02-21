@@ -218,8 +218,8 @@ func (mc *MessageController) GetMessages(c *gin.Context) {
 //	@Security	Bearer
 //	@Accept		json
 //	@Produce	json
-//	@Param		id		path		string					true	"The message ID"
-//	@Param		request	body		map[string]string		true	"Updated text content"
+//	@Param		id		path		string				true	"The message ID"
+//	@Param		request	body		map[string]string	true	"Updated text content"
 //	@Success	200		{object}	dto.MessageDTO
 //	@Failure	400		{object}	map[string]interface{}	"Bad Request"
 //	@Failure	403		{object}	map[string]interface{}	"Forbidden"
@@ -263,7 +263,7 @@ func (mc *MessageController) EditMessage(c *gin.Context) {
 //
 //	@Summary	Delete a message
 //	@Security	Bearer
-//	@Param		id	path		string	true	"The message ID"
+//	@Param		id	path	string	true	"The message ID"
 //	@Success	204	"No Content"
 //	@Failure	403	{object}	map[string]interface{}	"Forbidden"
 //	@Failure	404	{object}	map[string]interface{}	"Not Found"
