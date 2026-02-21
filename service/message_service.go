@@ -141,6 +141,9 @@ func (ms *MessageService) GetDirectMessages(user1Id, user2Id string) ([]*dto.Mes
 	}
 
 	messages, err := ms.messageRepo.GetByConversation(user1Id, user2Id)
+	if err != nil {
+		return nil, err
+	}
 	dtoMessages := []*dto.MessageDTO{}
 	for _, message := range messages {
 		receiverId, key_err := entity.GetReceiverIdFromKey(message.SenderID, message.ConversationKey)
@@ -157,7 +160,7 @@ func (ms *MessageService) GetDirectMessages(user1Id, user2Id string) ([]*dto.Mes
 		dtoMessage := dto.NewMessageDTO(message.ID, receiverId, message.TeamID, message.TextContent, message.SentAt, *senderDTO)
 		dtoMessages = append(dtoMessages, dtoMessage)
 	}
-	return dtoMessages, err
+	return dtoMessages, nil
 }
 
 func (ms *MessageService) GetTeamMessages(teamId string) ([]*dto.MessageDTO, error) {
@@ -166,6 +169,9 @@ func (ms *MessageService) GetTeamMessages(teamId string) ([]*dto.MessageDTO, err
 	}
 
 	messages, err := ms.messageRepo.GetByTeamID(teamId)
+	if err != nil {
+		return nil, err
+	}
 	dtoMessages := []*dto.MessageDTO{}
 	for _, message := range messages {
 
@@ -178,7 +184,7 @@ func (ms *MessageService) GetTeamMessages(teamId string) ([]*dto.MessageDTO, err
 		dtoMessage := dto.NewMessageDTO(message.ID, "", message.TeamID, message.TextContent, message.SentAt, *senderDTO)
 		dtoMessages = append(dtoMessages, dtoMessage)
 	}
-	return dtoMessages, err
+	return dtoMessages, nil
 }
 
 func (ms *MessageService) EditMessage(id string, senderID string, newText string) (*dto.MessageDTO, error) {
