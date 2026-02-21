@@ -1074,6 +1074,29 @@ paths:
       - Bearer: []
       summary: Create and send a message
   /messages/{id}:
+    delete:
+      parameters:
+      - description: The message ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Delete a message
     get:
       consumes:
       - application/json
@@ -1103,6 +1126,48 @@ paths:
       security:
       - Bearer: []
       summary: Get a message by ID
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: The message ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated text content
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.MessageDTO'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Edit a message
   /messages/connect:
     get:
       responses:
